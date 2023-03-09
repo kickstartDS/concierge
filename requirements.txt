@@ -5,3 +5,12 @@ pandas==1.5.3
 torch==1.12.1
 torchvision==0.13.1
 tqdm==4.64.0
+bs4==0.0.1
+jsonlines==3.1.0
+pytest-playwright==0.3.1
+trafilatura==1.4.1
+tiktoken==0.3.0
+bert-extractive-summarizer==0.10.1
+sentence-transformers==2.2.2
+markdown==3.4.1
+nltk==3.8.1
