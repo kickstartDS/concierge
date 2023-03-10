@@ -4,3 +4,4 @@ notebooks/cifar_net.pth
 
 /notebooks/pages-*
 /notebooks/screenshots
+/notebooks/top2vec.model
