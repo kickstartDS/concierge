@@ -2,6 +2,7 @@ notebooks/data
 notebooks/cifar_net.pth
 .ipynb_checkpoints/
 
+/notebooks/.env
 /notebooks/pages-*
 /notebooks/screenshots
 /notebooks/top2vec.model
