@@ -15,7 +15,6 @@ export const corsHeaders = {
 }
 
 serve(async (req) => {
-  // Handle CORS
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -56,7 +55,6 @@ serve(async (req) => {
     )
   }
 
-  // Search query is passed in request payload
   const requestData = await req.json()
 
   if (!requestData) {
@@ -97,16 +95,6 @@ serve(async (req) => {
     )
   }
 
-  console.log('RESULTS', results)
-
-  // Generate a one-time embedding for the query itself
-  // const embeddingResponse = await openai.createEmbedding({
-  //   model: 'text-embedding-ada-002',
-  //   input,
-  // })
-
-  // const [{ embedding }] = embeddingResponse.data.data
-
   const body = `{"question": "${sanitizedQuery}"}`;
   const resp = await fetch("https://question-embedding.fly.dev", {
     method: "POST",
@@ -118,14 +106,10 @@ serve(async (req) => {
 
   const { embedding } = await resp.json();
 
-  // Fetching whole documents for this simple example.
-  //
-  // Ideally for context injection, documents are chunked into
-  // smaller sections at earlier pre-processing/embedding step.
   const { error: matchError, data: pageSections } = await supabaseClient.rpc('match_sections', {
     query_embedding: embedding,
-    similarity_threshold: 0.78, // Choose an appropriate threshold for your data
-    match_count: 32, // Choose the number of matches
+    similarity_threshold: 0.78,
+    match_count: 32,
   })
 
   if (matchError) {
@@ -137,14 +121,12 @@ serve(async (req) => {
   let tokenCount = 0
   let contextText = ''
 
-  // Concat matched documents
   for (let i = 0; i < pageSections.length; i++) {
     const pageSection = pageSections[i]
     const content = pageSection.content
     const encoded = tokenizer.encode(content)
     tokenCount += encoded.text.length
 
-    // Limit context to max 1500 tokens (configurable)
     if (tokenCount > 1500) {
       break
     }
