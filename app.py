@@ -1,7 +1,11 @@
 from sentence_transformers import SentenceTransformer
 from flask import Flask, request
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)
+# TODO re-add this, should restrict origins here
+# cors = CORS(app, resources={r"/*": {"origins": "*"}})
 
 bi_encoder = SentenceTransformer('multi-qa-mpnet-base-dot-v1')
 bi_encoder.max_seq_length = 256

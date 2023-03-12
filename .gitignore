@@ -1,6 +1,10 @@
 .ipynb_checkpoints/
 
 __pycache__
+node_modules
+
+/supabase/.env
+/supabase/.env.local
 
 /notebooks/data
 /notebooks/cifar_net.pth

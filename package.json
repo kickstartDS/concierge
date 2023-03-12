@@ -1,0 +1,23 @@
+{
+  "name": "@kickstartds/concierge",
+  "version": "1.0.0",
+  "description": "Supabase edge function aspect of the kickstartDS Concierge",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kickstartDS/concierge.git"
+  },
+  "author": "Jonas Ulrich",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/kickstartDS/concierge/issues"
+  },
+  "homepage": "https://github.com/kickstartDS/concierge#readme",
+  "devDependencies": {
+    "supabase": "^1.42.5"
+  },
+  "dependencies": {}
+}
