@@ -134,3 +134,4 @@ TODO Add description
 - Finish README.md
 - Document Codespace use
 - Add blurb about being fair / ecosystem-positive, but everybody who wants to be removed from the knowledge base can just contact us to be removed
+- Supabase acknowledgement (document use of code from supabase examples & repository)
