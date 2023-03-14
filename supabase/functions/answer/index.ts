@@ -4,6 +4,7 @@ import { serve } from 'https://deno.land/std@0.170.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.5.0'
 import { codeBlock, oneLine } from 'https://esm.sh/common-tags@1.8.2'
 import { encode } from "https://deno.land/std@0.170.0/encoding/base64.ts"
+import { mergeReadableStreams } from "https://deno.land/std@0.170.0/streams/merge_readable_streams.ts"
 import { Configuration, CreateCompletionRequest, OpenAIApi } from 'https://esm.sh/openai@3.1.0'
 
 const openAiKey = Deno.env.get('OPEN_AI_KEY')
@@ -213,13 +214,26 @@ serve(async (req) => {
         throw new ApplicationError('Failed to insert answer sections into DB', insertAnswerSectionsError)
       }
     }
+    
+    if (response.body) {
+      const data = `data: ${JSON.stringify({ pageSections: pageSections})}\n\n`;
 
-    return new Response(response.body, {
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'text/event-stream',
-      },
-    })
+      const stream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(data)
+          controller.close()
+        }
+      }).pipeThrough(new TextEncoderStream());
+
+      return new Response(mergeReadableStreams(stream, response.body), {
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'text/event-stream',
+        },
+      })
+    } else {
+      throw new ApplicationError('Couldnt create merged stream response')
+    }
   } catch (err: unknown) {
     if (err instanceof UserError) {
       console.warn('UserError', err)
