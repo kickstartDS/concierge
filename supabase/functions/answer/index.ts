@@ -1,8 +1,9 @@
-import { serve } from 'https://deno.land/std@0.170.0/http/server.ts'
 import 'https://deno.land/x/xhr@0.2.1/mod.ts'
+import GPT3Tokenizer from 'https://esm.sh/gpt3-tokenizer@1.1.5'
+import { serve } from 'https://deno.land/std@0.170.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.5.0'
 import { codeBlock, oneLine } from 'https://esm.sh/common-tags@1.8.2'
-import GPT3Tokenizer from 'https://esm.sh/gpt3-tokenizer@1.1.5'
+import { encode } from "https://deno.land/std@0.170.0/encoding/base64.ts"
 import { Configuration, CreateCompletionRequest, OpenAIApi } from 'https://esm.sh/openai@3.1.0'
 
 const openAiKey = Deno.env.get('OPEN_AI_KEY')
@@ -20,7 +21,13 @@ class ApplicationError extends Error {
   }
 }
 
+const debug = true;
+
 class UserError extends ApplicationError {}
+
+interface Question {
+  [x: string]: any;
+}
 
 serve(async (req) => {
   try {
@@ -42,6 +49,9 @@ serve(async (req) => {
 
     const requestData = await req.json()
 
+    const identifier = encode(requestData['question'] || 'missing').slice(-7);
+    if (debug) console.log(identifier, 'requestData', requestData)
+
     if (!requestData) {
       throw new UserError('Missing request data')
     }
@@ -53,6 +63,7 @@ serve(async (req) => {
     }
 
     const sanitizedQuery = question.replace(/\n/g, ' ').trim()
+    if (debug) console.log(identifier, 'sanitizedQuery', sanitizedQuery)
 
     const supabaseClient = createClient(supabaseUrl, supabaseServiceKey)
 
@@ -62,6 +73,7 @@ serve(async (req) => {
     const moderationResponse = await openai.createModeration({ input: sanitizedQuery })
 
     const [results] = moderationResponse.data.results
+    if (debug) console.log(identifier, 'moderationResponseResults', results)
 
     if (results.flagged) {
       throw new UserError('Flagged content', {
@@ -85,11 +97,19 @@ serve(async (req) => {
 
     const { embedding } = await embeddingResponse.json();
 
+    if (debug) console.log(identifier, 'embedding', embedding.length, embedding)
+
     const { error: matchError, data: pageSections } = await supabaseClient.rpc('match_sections', {
       query_embedding: embedding,
-      similarity_threshold: 0.78,
-      match_count: 32,
+      similarity_threshold: 0.4,
+      match_count: 5,
     })
+
+    if (debug) console.log(identifier, `pageSections (#${pageSections?.length})`, pageSections)
+
+    if (pageSections && pageSections.length === 0) {
+      throw new UserError('Failed to find relevant page sections')
+    }
 
     if (matchError) {
       throw new ApplicationError('Failed to match page sections', matchError)
@@ -105,7 +125,7 @@ serve(async (req) => {
       const encoded = tokenizer.encode(content)
       tokenCount += encoded.text.length
 
-      if (tokenCount > 1500) {
+      if (tokenCount > 2000) {
         break
       }
 
@@ -131,11 +151,14 @@ serve(async (req) => {
 
       Answer as markdown (including related code snippets if available):
     `
+    
+    const encodedPrompt = tokenizer.encode(prompt);
+    if (debug) console.log(identifier, 'prompt', 'tokens', encodedPrompt.text.length, 'prompt', prompt)
 
     const completionOptions: CreateCompletionRequest = {
       model: 'text-davinci-003',
       prompt,
-      max_tokens: 512,
+      max_tokens: 1000,
       temperature: 0,
       stream: true,
     }
@@ -154,6 +177,43 @@ serve(async (req) => {
       throw new ApplicationError('Failed to generate completion', error)
     }
 
+    const timestamptz = ((new Date()).toISOString()).toLocaleString();
+    const { error: questionInsertError, data: dbQuestionResponse } = await supabaseClient.from('questions').insert({
+      created_at: timestamptz,
+      updated_at: timestamptz,
+      question: sanitizedQuery,
+      prompt,
+      prompt_length: encodedPrompt.text.length,
+      answer: 'TODO',
+      embedding,
+    }).select()
+
+    if (questionInsertError) {
+      throw new ApplicationError('Failed to insert question into DB', questionInsertError)
+    }
+
+    const dbQuestion: Question = dbQuestionResponse[0];
+    if (debug) console.log(identifier, 'dbQuestion', dbQuestion)
+
+    if (dbQuestion && dbQuestion.id) {
+      const answerSections = []
+
+      for (let i = 0; i < pageSections.length; i++) {
+        const pageSection = pageSections[i]
+        answerSections.push({
+          question_id: dbQuestion.id,
+          section_id: pageSection.id,
+          similarity: pageSection.similarity,
+        })
+      }
+
+      const { error: insertAnswerSectionsError } = await supabaseClient.from('question_answer_sections').insert(answerSections);
+
+      if (insertAnswerSectionsError) {
+        throw new ApplicationError('Failed to insert answer sections into DB', insertAnswerSectionsError)
+      }
+    }
+
     return new Response(response.body, {
       headers: {
         ...corsHeaders,
@@ -162,6 +222,8 @@ serve(async (req) => {
     })
   } catch (err: unknown) {
     if (err instanceof UserError) {
+      console.warn('UserError', err)
+
       return new Response(
         JSON.stringify({
           error: err.message,

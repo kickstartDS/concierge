@@ -135,3 +135,5 @@ TODO Add description
 - Document Codespace use
 - Add blurb about being fair / ecosystem-positive, but everybody who wants to be removed from the knowledge base can just contact us to be removed
 - Supabase acknowledgement (document use of code from supabase examples & repository)
+- Add console logs to edge function to get insight into use of it (maybe do the same for Python webservice)
+- Add Slack notification for every search + answer done

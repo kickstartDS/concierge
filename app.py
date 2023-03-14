@@ -7,7 +7,7 @@ CORS(app)
 # TODO re-add this, should restrict origins here
 # cors = CORS(app, resources={r"/*": {"origins": "*"}})
 
-bi_encoder = SentenceTransformer('multi-qa-mpnet-base-dot-v1')
+bi_encoder = SentenceTransformer('msmarco-distilbert-cos-v5')
 bi_encoder.max_seq_length = 256
 
 @app.route('/', methods=['POST'])
