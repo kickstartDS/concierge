@@ -178,54 +178,68 @@ serve(async (req) => {
       throw new ApplicationError('Failed to generate completion', error)
     }
 
-    const timestamptz = ((new Date()).toISOString()).toLocaleString();
-    const { error: questionInsertError, data: dbQuestionResponse } = await supabaseClient.from('questions').insert({
-      created_at: timestamptz,
-      updated_at: timestamptz,
-      question: sanitizedQuery,
-      prompt,
-      prompt_length: encodedPrompt.text.length,
-      answer: 'TODO',
-      embedding,
-    }).select()
-
-    if (questionInsertError) {
-      throw new ApplicationError('Failed to insert question into DB', questionInsertError)
-    }
-
-    const dbQuestion: Question = dbQuestionResponse[0];
-    if (debug) console.log(identifier, 'dbQuestion', dbQuestion)
-
-    if (dbQuestion && dbQuestion.id) {
-      const answerSections = []
-
-      for (let i = 0; i < pageSections.length; i++) {
-        const pageSection = pageSections[i]
-        answerSections.push({
-          question_id: dbQuestion.id,
-          section_id: pageSection.id,
-          similarity: pageSection.similarity,
-        })
-      }
-
-      const { error: insertAnswerSectionsError } = await supabaseClient.from('question_answer_sections').insert(answerSections);
-
-      if (insertAnswerSectionsError) {
-        throw new ApplicationError('Failed to insert answer sections into DB', insertAnswerSectionsError)
-      }
-    }
-    
     if (response.body) {
+      const [capturetream, passThroughtream] = response.body.tee();
+
+      let answer = '';
+      const answerStream = capturetream.pipeThrough(new TextDecoderStream())
+      for await (const chunk of answerStream) {
+        const data = chunk.split('data: ')[1].trim();
+
+        if (data !== '[DONE]') {
+          answer += (JSON.parse(data))['choices'][0]['text']
+        }
+      }
+
+      if (debug) console.log(identifier, 'answer', answer);
+
+      const timestamptz = ((new Date()).toISOString()).toLocaleString();
+      const { error: questionInsertError, data: dbQuestionResponse } = await supabaseClient.from('questions').insert({
+        created_at: timestamptz,
+        updated_at: timestamptz,
+        question: sanitizedQuery,
+        prompt,
+        prompt_length: encodedPrompt.text.length,
+        answer: answer.replace('\n', ' ').trim(),
+        embedding,
+      }).select()
+  
+      if (questionInsertError) {
+        throw new ApplicationError('Failed to insert question into DB', questionInsertError)
+      }
+  
+      const dbQuestion: Question = dbQuestionResponse[0];
+      if (debug) console.log(identifier, 'dbQuestion', dbQuestion)
+  
+      if (dbQuestion && dbQuestion.id) {
+        const answerSections = []
+  
+        for (let i = 0; i < pageSections.length; i++) {
+          const pageSection = pageSections[i]
+          answerSections.push({
+            question_id: dbQuestion.id,
+            section_id: pageSection.id,
+            similarity: pageSection.similarity,
+          })
+        }
+  
+        const { error: insertAnswerSectionsError } = await supabaseClient.from('question_answer_sections').insert(answerSections);
+  
+        if (insertAnswerSectionsError) {
+          throw new ApplicationError('Failed to insert answer sections into DB', insertAnswerSectionsError)
+        }
+      }
+
       const data = `data: ${JSON.stringify({ pageSections: pageSections})}\n\n`;
 
-      const stream = new ReadableStream({
+      const pageSectionstream = new ReadableStream({
         start(controller) {
           controller.enqueue(data)
           controller.close()
         }
       }).pipeThrough(new TextEncoderStream());
 
-      return new Response(mergeReadableStreams(stream, response.body), {
+      return new Response(mergeReadableStreams(pageSectionstream, passThroughtream), {
         headers: {
           ...corsHeaders,
           'Content-Type': 'text/event-stream',
