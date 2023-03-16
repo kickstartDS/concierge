@@ -5,7 +5,9 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.5.0'
 import { codeBlock, oneLine } from 'https://esm.sh/common-tags@1.8.2'
 import { encode } from "https://deno.land/std@0.170.0/encoding/base64.ts"
 import { mergeReadableStreams } from "https://deno.land/std@0.170.0/streams/merge_readable_streams.ts"
+import { readableStreamFromIterable } from "https://deno.land/std@0.170.0/streams/readable_stream_from_iterable.ts";
 import { Configuration, CreateCompletionRequest, OpenAIApi } from 'https://esm.sh/openai@3.1.0'
+import { Database } from './dbTypes.ts'
 
 const openAiKey = Deno.env.get('OPEN_AI_KEY')
 const supabaseUrl = Deno.env.get('SUPABASE_URL')
@@ -17,7 +19,7 @@ export const corsHeaders = {
 }
 
 class ApplicationError extends Error {
-  constructor(message: string, public data: Record<string, any> = {}) {
+  constructor(message: string, public data: unknown = {}) {
     super(message)
   }
 }
@@ -26,8 +28,71 @@ const debug = true;
 
 class UserError extends ApplicationError {}
 
-interface Question {
-  [x: string]: any;
+async function* extractAnswer(
+  linesAsync: ReadableStream<string>,
+  identifier: string,
+  sanitizedQuery: string,
+  prompt: string,
+  encodedPrompt: {
+    bpe: number[]
+    text: string[]
+  },
+  embedding: number[],
+  pageSections: Database['public']['Functions']['match_sections']['Returns'],
+) {
+  if (supabaseUrl && supabaseServiceKey) {
+    const supabaseClient = createClient<Database>(supabaseUrl, supabaseServiceKey)
+
+    let answer = '';
+    for await (const line of linesAsync) {
+      const data = line.split('data: ')[1].trim();
+  
+      if (data !== '[DONE]') {
+        answer += (JSON.parse(data))['choices'][0]['text']
+        yield line
+      } else {
+        if (debug) console.log(identifier, 'answer', answer);
+  
+        const timestamptz = ((new Date()).toISOString()).toLocaleString();
+        const { error: questionInsertError, data: dbQuestionResponse } = await supabaseClient.from('questions').insert({
+          created_at: timestamptz,
+          updated_at: timestamptz,
+          question: sanitizedQuery,
+          prompt,
+          prompt_length: encodedPrompt.text.length,
+          answer: answer && answer.replace('\n', ' ').trim(),
+          embedding,
+        }).select()
+    
+        if (questionInsertError) {
+          throw new ApplicationError('Failed to insert question into DB', questionInsertError)
+        }
+    
+        const dbQuestion = dbQuestionResponse[0];
+        if (debug) console.log(identifier, 'dbQuestion', dbQuestion)
+    
+        if (dbQuestion && dbQuestion.id) {
+          const answerSections: Database['public']['Tables']['question_answer_sections']['Row'][] = []
+    
+          for (let i = 0; i < pageSections.length; i++) {
+            const pageSection = pageSections[i]
+            answerSections.push({
+              question_id: dbQuestion.id,
+              section_id: pageSection.id,
+              similarity: pageSection.similarity,
+            })
+          }
+    
+          const { error: insertAnswerSectionsError } = await supabaseClient.from('question_answer_sections').insert(answerSections);
+    
+          if (insertAnswerSectionsError) {
+            throw new ApplicationError('Failed to insert answer sections into DB', insertAnswerSectionsError)
+          }
+        }
+        yield line
+      }
+    }
+  }
 }
 
 serve(async (req) => {
@@ -66,7 +131,7 @@ serve(async (req) => {
     const sanitizedQuery = question.replace(/\n/g, ' ').trim()
     if (debug) console.log(identifier, 'sanitizedQuery', sanitizedQuery)
 
-    const supabaseClient = createClient(supabaseUrl, supabaseServiceKey)
+    const supabaseClient = createClient<Database>(supabaseUrl, supabaseServiceKey)
 
     const configuration = new Configuration({ apiKey: openAiKey })
     const openai = new OpenAIApi(configuration)
@@ -103,7 +168,7 @@ serve(async (req) => {
     const { error: matchError, data: pageSections } = await supabaseClient.rpc('match_sections', {
       query_embedding: embedding,
       similarity_threshold: 0.4,
-      match_count: 5,
+      match_count: 15,
     })
 
     if (debug) console.log(identifier, `pageSections (#${pageSections?.length})`, pageSections)
@@ -126,7 +191,7 @@ serve(async (req) => {
       const encoded = tokenizer.encode(content)
       tokenCount += encoded.text.length
 
-      if (tokenCount > 2000) {
+      if (tokenCount > 2200) {
         break
       }
 
@@ -150,7 +215,7 @@ serve(async (req) => {
       ${sanitizedQuery}
       """
 
-      Answer as markdown (including related code snippets if available):
+      Make sure to include at least two paragraphs in your answer, and close with a third additional paragraph including the tldr of your answer (prefixed as "#tldr"). Answer as markdown (including related code snippets if available):
     `
     
     const encodedPrompt = tokenizer.encode(prompt);
@@ -159,7 +224,7 @@ serve(async (req) => {
     const completionOptions: CreateCompletionRequest = {
       model: 'text-davinci-003',
       prompt,
-      max_tokens: 1000,
+      max_tokens: 1300,
       temperature: 0,
       stream: true,
     }
@@ -179,56 +244,15 @@ serve(async (req) => {
     }
 
     if (response.body) {
-      const [capturetream, passThroughtream] = response.body.tee();
-
-      let answer = '';
-      const answerStream = capturetream.pipeThrough(new TextDecoderStream())
-      for await (const chunk of answerStream) {
-        const data = chunk.split('data: ')[1].trim();
-
-        if (data !== '[DONE]') {
-          answer += (JSON.parse(data))['choices'][0]['text']
-        }
-      }
-
-      if (debug) console.log(identifier, 'answer', answer);
-
-      const timestamptz = ((new Date()).toISOString()).toLocaleString();
-      const { error: questionInsertError, data: dbQuestionResponse } = await supabaseClient.from('questions').insert({
-        created_at: timestamptz,
-        updated_at: timestamptz,
-        question: sanitizedQuery,
+      const answerGenerator = extractAnswer(
+        response.body.pipeThrough(new TextDecoderStream()),
+        identifier,
+        sanitizedQuery,
         prompt,
-        prompt_length: encodedPrompt.text.length,
-        answer: answer.replace('\n', ' ').trim(),
+        encodedPrompt,
         embedding,
-      }).select()
-  
-      if (questionInsertError) {
-        throw new ApplicationError('Failed to insert question into DB', questionInsertError)
-      }
-  
-      const dbQuestion: Question = dbQuestionResponse[0];
-      if (debug) console.log(identifier, 'dbQuestion', dbQuestion)
-  
-      if (dbQuestion && dbQuestion.id) {
-        const answerSections = []
-  
-        for (let i = 0; i < pageSections.length; i++) {
-          const pageSection = pageSections[i]
-          answerSections.push({
-            question_id: dbQuestion.id,
-            section_id: pageSection.id,
-            similarity: pageSection.similarity,
-          })
-        }
-  
-        const { error: insertAnswerSectionsError } = await supabaseClient.from('question_answer_sections').insert(answerSections);
-  
-        if (insertAnswerSectionsError) {
-          throw new ApplicationError('Failed to insert answer sections into DB', insertAnswerSectionsError)
-        }
-      }
+        pageSections,
+      );
 
       const data = `data: ${JSON.stringify({ pageSections: pageSections})}\n\n`;
 
@@ -239,7 +263,11 @@ serve(async (req) => {
         }
       }).pipeThrough(new TextEncoderStream());
 
-      return new Response(mergeReadableStreams(pageSectionstream, passThroughtream), {
+      return new Response(
+        mergeReadableStreams(
+          pageSectionstream,
+          readableStreamFromIterable(answerGenerator).pipeThrough(new TextEncoderStream())
+        ), {
         headers: {
           ...corsHeaders,
           'Content-Type': 'text/event-stream',
