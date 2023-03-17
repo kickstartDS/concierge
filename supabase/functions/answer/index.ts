@@ -191,7 +191,7 @@ serve(async (req) => {
       const encoded = tokenizer.encode(content)
       tokenCount += encoded.text.length
 
-      if (tokenCount > 2200) {
+      if (tokenCount > 2100) {
         break
       }
 
@@ -215,7 +215,7 @@ serve(async (req) => {
       ${sanitizedQuery}
       """
 
-      Make sure to include at least two paragraphs in your answer, and close with a third additional paragraph including the tldr of your answer (prefixed as "#tldr"). Answer as markdown (including related code snippets if available):
+      Make sure to include at least four paragraphs in your answer, and start with a paragraph including the tldr of your answer (prefixed as "#tldr", wrapped in "**"). Answer as markdown:
     `
     
     const encodedPrompt = tokenizer.encode(prompt);
@@ -224,7 +224,7 @@ serve(async (req) => {
     const completionOptions: CreateCompletionRequest = {
       model: 'text-davinci-003',
       prompt,
-      max_tokens: 1300,
+      max_tokens: 1200,
       temperature: 0,
       stream: true,
     }
