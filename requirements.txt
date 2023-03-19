@@ -22,3 +22,4 @@ markdownify==0.11.6
 python-dotenv==1.0.0
 psycopg==3.1.8
 pgvector==0.1.6
+langchain==0.0.113
