@@ -215,7 +215,7 @@ serve(async (req) => {
       ${sanitizedQuery}
       """
 
-      Make sure to include at least four paragraphs in your answer, and start with a paragraph including the tldr of your answer (prefixed as "#tldr", wrapped in "**"). Answer as markdown:
+      Make sure to include at least four paragraphs in your answer, and start with a paragraph including the tldr of your answer (prefixed as "#tldr",the whole first paragraph wrapped in "**"). Answer as markdown:
     `
     
     const encodedPrompt = tokenizer.encode(prompt);
