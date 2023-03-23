@@ -12,3 +12,7 @@ node_modules
 /notebooks/pages-*
 /notebooks/screenshots
 /notebooks/top2vec.model
+
+page-embeddings.pkl
+screenshots.tar.gz
+topics.model

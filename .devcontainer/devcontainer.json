@@ -1,7 +1,8 @@
 {
   "image": "mcr.microsoft.com/devcontainers/universal:2",
+  "runArgs": ["--shm-size=2gb"],
   "hostRequirements": {
-    "cpus": 4
+    "cpus": 8
   },
   "waitFor": "onCreateCommand",
   "updateContentCommand": "python3 -m pip install -r requirements.txt",
