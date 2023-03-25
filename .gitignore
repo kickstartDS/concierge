@@ -12,6 +12,8 @@ node_modules
 /notebooks/pages-*
 /notebooks/screenshots
 /notebooks/top2vec.model
+/notebooks/BERTopic.model
+/notebooks/BERTopic-topics-probs.pkl
 
 page-embeddings.pkl
 screenshots.tar.gz
