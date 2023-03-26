@@ -11,10 +11,8 @@ node_modules
 /notebooks/.env
 /notebooks/pages-*
 /notebooks/screenshots
-/notebooks/top2vec.model
-/notebooks/BERTopic.model
-/notebooks/BERTopic-topics-probs.pkl
-/notebooks/section_outlier_scores.pkl
+/notebooks/*.pkl
+/notebooks/*.model
 
 page-embeddings.pkl
 screenshots.tar.gz
