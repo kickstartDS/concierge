@@ -17,3 +17,5 @@ node_modules
 page-embeddings.pkl
 screenshots.tar.gz
 topics.model
+
+!/visualizations/.gikeep
