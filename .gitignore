@@ -18,4 +18,5 @@ page-embeddings.pkl
 screenshots.tar.gz
 topics.model
 
+/visualizations
 !/visualizations/.gikeep
