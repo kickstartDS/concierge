@@ -7,7 +7,7 @@ import { encode } from "https://deno.land/std@0.170.0/encoding/base64.ts"
 import { mergeReadableStreams } from "https://deno.land/std@0.170.0/streams/merge_readable_streams.ts"
 import { readableStreamFromIterable } from "https://deno.land/std@0.170.0/streams/readable_stream_from_iterable.ts";
 import { Configuration, CreateCompletionRequest, OpenAIApi } from 'https://esm.sh/openai@3.1.0'
-import { Database } from './dbTypes.ts'
+import { Database } from '../dbTypes.ts'
 
 const openAiKey = Deno.env.get('OPEN_AI_KEY')
 const supabaseUrl = Deno.env.get('SUPABASE_URL')

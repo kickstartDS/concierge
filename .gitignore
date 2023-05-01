@@ -15,6 +15,7 @@ node_modules
 /notebooks/*.model
 
 page-embeddings.pkl
+page_embeddings.pkl
 screenshots.tar.gz
 topics.model
 

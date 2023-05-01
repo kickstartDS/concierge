@@ -1,7 +1,7 @@
 {
   "name": "@kickstartds/concierge",
   "version": "1.0.0",
-  "description": "Supabase edge function aspect of the kickstartDS Concierge",
+  "description": "Get Design System answers, fast! Our AI-powered Concierge offers insights from our vast Design System database sourcing expert content only. Ask any question, get pointed to the right source. Your ultimate Design System assistant.",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -10,8 +10,8 @@
     "type": "git",
     "url": "git+https://github.com/kickstartDS/concierge.git"
   },
-  "author": "Jonas Ulrich",
-  "license": "MIT",
+  "license": "(MIT OR Apache-2.0)",
+  "author": "Jonas Ulrich <jonas.ulrich@kickstartds.com> (https://www.kickstartDS.com/)",
   "bugs": {
     "url": "https://github.com/kickstartDS/concierge/issues"
   },
