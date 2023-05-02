@@ -10,8 +10,12 @@
 # kickstartDS Concierge - Your AI-powered Design System assistant
 
 This repository contains all code related to the kickstartDS Concierge hosted at https://www.kickstartDS.com/concierge/
-Read more about its release on our blog post: https://www.kickstartDS.com/blog/launching-the-design-system-concierge/
-For a more detailed overview of the architecture, design decisions and some code... have a look at the following Miro board: https://miro.com/app/board/uXjVMdpB0ao=/
+
+Read more about its release on our blog post:  
+https://www.kickstartDS.com/blog/launching-the-design-system-concierge/
+
+For a more detailed overview of the architecture, design decisions and some code... have a look at the following Miro board:  
+https://miro.com/app/board/uXjVMdpB0ao=/
 
 ![Screenshot of the Design System Concierge](assets/screenshot-concierge.png)
 
