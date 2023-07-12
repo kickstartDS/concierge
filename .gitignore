@@ -21,3 +21,6 @@ topics.model
 
 /visualizations
 !/visualizations/.gikeep
+
+# Cache
+__pycache__
