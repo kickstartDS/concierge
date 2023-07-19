@@ -3,12 +3,20 @@ from flask import Flask
 from flask.helpers import get_root_path
 from flask_login import login_required
 
+from dtale.app import build_app
+
 from config import BaseConfig
 
 
 def create_app():
-    server = Flask(__name__)
+    server = build_app(reaper_on=False)
     server.config.from_object(BaseConfig)
+
+    # server.config["EXPLAIN_TEMPLATE_LOADING"] = True
+
+    @server.route("/")
+    def start():
+        return 'Hi there, load data using <a href="/create-df">create-df</a>. You need to be logged in, though!'
 
     from app.dashapp1.layout import layout as layout1
     from app.dashapp1.callbacks import register_callbacks as register_callbacks1
@@ -63,7 +71,7 @@ def register_extensions(server):
 
     db.init_app(server)
     login.init_app(server)
-    login.login_view = "main.login"
+    login.login_view = "app.login"
     migrate.init_app(server, db)
 
 

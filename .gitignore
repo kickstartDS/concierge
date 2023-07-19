@@ -24,3 +24,5 @@ topics.model
 
 # Cache
 __pycache__
+
+.env
