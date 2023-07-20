@@ -1,4 +1,6 @@
 import dash
+import dash_bootstrap_components as dbc
+
 from flask.helpers import get_root_path
 from flask_login import login_required
 
@@ -44,6 +46,7 @@ def register_dashapp(app, title, base_pathname, layout, register_callbacks_fun):
         url_base_pathname=f"/{base_pathname}/",
         assets_folder=get_root_path(__name__) + f"/{base_pathname}/assets/",
         meta_tags=[meta_viewport],
+        external_stylesheets=[dbc.themes.BOOTSTRAP],
     )
 
     with app.app_context():
