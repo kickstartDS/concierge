@@ -1,5 +1,4 @@
 import dash
-from flask import Flask
 from flask.helpers import get_root_path
 from flask_login import login_required
 
@@ -11,8 +10,6 @@ from config import BaseConfig
 def create_app():
     server = build_app(reaper_on=False)
     server.config.from_object(BaseConfig)
-
-    # server.config["EXPLAIN_TEMPLATE_LOADING"] = True
 
     @server.route("/")
     def start():
