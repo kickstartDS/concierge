@@ -56,6 +56,13 @@ bi_encoder = SentenceTransformer("msmarco-distilbert-cos-v5")
 bi_encoder.max_seq_length = 256
 
 
+# duplicated to have app.index existing, even if it's never called,
+# because it is overwritten by dtale `/` route
+@server_bp.route("/", methods=["GET"])
+def index():
+    return 'Hi there, load data using <a href="/create-df">create-df</a>'
+
+
 @server_bp.route("/", methods=["POST"])
 def embedding():
     request_data = request.get_json()
