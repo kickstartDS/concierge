@@ -7,12 +7,13 @@ import dash_bootstrap_components as dbc
 
 from dash import dcc
 from dash import html
+from dash_bootstrap_templates import load_figure_template
 
 from dotenv import load_dotenv
 from pgvector.psycopg import register_vector
-from plotly.subplots import make_subplots
 
 load_dotenv()
+load_figure_template("slate")
 
 conn_string = (
     "dbname=postgres user=postgres password="
@@ -55,6 +56,21 @@ with psycopg.connect(
         )
     )
 
+    sql = "SELECT COUNT(*) from questions WHERE created_at >= '2023-05-02'::date;"
+    df_all_count = pd.read_sql_query(sql, conn)
+    pie_all_vs_default = go.Figure(
+        data=go.Pie(
+            values=[
+                df_all_count["count"][0] - df_def_questions["cnt"].sum(),
+                df_def_questions["cnt"].sum(),
+            ],
+            labels=[
+                "Custom",
+                "Default",
+            ],
+        )
+    )
+
 layout = html.Div(
     [
         dbc.Row([dbc.Col(html.H1("Concierge dashboard")), dbc.Col([])]),
@@ -77,6 +93,21 @@ layout = html.Div(
                 ),
             ]
         ),
-        dbc.Row([dbc.Col([]), dbc.Col([])]),
-    ]
+        dbc.Row(
+            [
+                dbc.Col(
+                    [
+                        html.H2("Default vs Custom questions"),
+                        dcc.Graph(
+                            id="graph_all_vs_default",
+                            figure=pie_all_vs_default,
+                        ),
+                    ],
+                    style={"marginTop": "2rem"},
+                ),
+                dbc.Col([]),
+            ]
+        ),
+    ],
+    style={"margin": "2% 10%"},
 )

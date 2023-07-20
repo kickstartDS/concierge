@@ -40,13 +40,17 @@ def register_dashapp(app, title, base_pathname, layout, register_callbacks_fun):
         "content": "width=device-width, initial-scale=1, shrink-to-fit=no",
     }
 
+    dbc_css = (
+        "https://cdn.jsdelivr.net/gh/AnnMarieW/dash-bootstrap-templates/dbc.min.css"
+    )
+
     my_dashapp = dash.Dash(
         __name__,
         server=app,
         url_base_pathname=f"/{base_pathname}/",
         assets_folder=get_root_path(__name__) + f"/{base_pathname}/assets/",
         meta_tags=[meta_viewport],
-        external_stylesheets=[dbc.themes.BOOTSTRAP],
+        external_stylesheets=[dbc.themes.SLATE, dbc_css],
     )
 
     with app.app_context():
