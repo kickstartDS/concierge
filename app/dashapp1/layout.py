@@ -71,9 +71,42 @@ with psycopg.connect(
         )
     )
 
+    sql = "SELECT COUNT(*) from questions WHERE created_at >= '2023-05-02'::date AND answer SIMILAR TO 'Sorry, I don_t know how to help with that.'"
+    df_no_answer = pd.read_sql_query(sql, conn)
+
+    sql = "SELECT COUNT(*) from questions WHERE created_at >= '2023-05-02'::date AND answer SIMILAR TO 'Sorry, I don_t know how to help with that. %'"
+    df_uncertain_answer = pd.read_sql_query(sql, conn)
+
+    pie_answer_certainty = go.Figure(
+        data=go.Pie(
+            values=[
+                df_all_count["count"][0]
+                - df_no_answer["count"][0]
+                - df_uncertain_answer["count"][0],
+                df_no_answer["count"][0],
+                df_uncertain_answer["count"][0],
+            ],
+            labels=[
+                "Answer",
+                "No Answer",
+                "Uncertain",
+            ],
+        )
+    )
+
 layout = html.Div(
     [
-        dbc.Row([dbc.Col(html.H1("Concierge dashboard")), dbc.Col([])]),
+        dbc.Row(
+            [
+                dbc.Col(
+                    html.H1(
+                        "Concierge dashboard",
+                        style={"marginBottom": "2rem"},
+                    )
+                ),
+                dbc.Col([]),
+            ]
+        ),
         dbc.Row(
             [
                 dbc.Col(
@@ -105,7 +138,16 @@ layout = html.Div(
                     ],
                     style={"marginTop": "2rem"},
                 ),
-                dbc.Col([]),
+                dbc.Col(
+                    [
+                        html.H2("Certainty of answers"),
+                        dcc.Graph(
+                            id="graph_answer_certainty",
+                            figure=pie_answer_certainty,
+                        ),
+                    ],
+                    style={"marginTop": "2rem"},
+                ),
             ]
         ),
     ],
