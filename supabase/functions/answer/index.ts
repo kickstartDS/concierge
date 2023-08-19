@@ -31,7 +31,7 @@ const debug = true;
 class UserError extends ApplicationError {}
 
 async function* extractAnswer(
-  stream: Stream<OpenAI.Completions.Completion>,
+  stream: ReadableStream<OpenAI.Completions.Completion>,
   identifier: string,
   sanitizedQuery: string,
   prompt: string,
@@ -51,60 +51,65 @@ async function* extractAnswer(
     let answer = "";
     for await (const part of stream) {
       answer += part["choices"][0]["text"];
-      yield part;
+
+      if (part["choices"][0]["finish_reason"]) {
+        const timestamptz = new Date().toISOString().toLocaleString();
+        const { error: questionInsertError, data: dbQuestionResponse } =
+          await supabaseClient
+            .from("questions")
+            .insert({
+              created_at: timestamptz,
+              updated_at: timestamptz,
+              question: sanitizedQuery,
+              prompt,
+              prompt_length: encodedPrompt.text.length,
+              answer: answer && answer.replace("\n", " ").trim(),
+              embedding,
+            })
+            .select();
+
+        if (questionInsertError) {
+          throw new ApplicationError(
+            "Failed to insert question into DB",
+            questionInsertError
+          );
+        }
+
+        const dbQuestion = dbQuestionResponse[0];
+        if (debug) console.log(identifier, "dbQuestion", dbQuestion);
+
+        if (dbQuestion && dbQuestion.id) {
+          const answerSections: Database["public"]["Tables"]["question_answer_sections"]["Row"][] =
+            [];
+
+          for (let i = 0; i < pageSections.length; i++) {
+            const pageSection = pageSections[i];
+            answerSections.push({
+              question_id: dbQuestion.id,
+              section_id: pageSection.id,
+              similarity: pageSection.similarity,
+            });
+          }
+
+          const { error: insertAnswerSectionsError } = await supabaseClient
+            .from("question_answer_sections")
+            .insert(answerSections);
+
+          if (insertAnswerSectionsError) {
+            throw new ApplicationError(
+              "Failed to insert answer sections into DB",
+              insertAnswerSectionsError
+            );
+          }
+        }
+
+        yield `data: ${JSON.stringify(part)}\n\ndata: [DONE]`;
+      } else {
+        yield `data: ${JSON.stringify(part)}\n\n`;
+      }
     }
 
     if (debug) console.log(identifier, "answer", answer);
-
-    const timestamptz = new Date().toISOString().toLocaleString();
-    const { error: questionInsertError, data: dbQuestionResponse } =
-      await supabaseClient
-        .from("questions")
-        .insert({
-          created_at: timestamptz,
-          updated_at: timestamptz,
-          question: sanitizedQuery,
-          prompt,
-          prompt_length: encodedPrompt.text.length,
-          answer: answer && answer.replace("\n", " ").trim(),
-          embedding,
-        })
-        .select();
-
-    if (questionInsertError) {
-      throw new ApplicationError(
-        "Failed to insert question into DB",
-        questionInsertError
-      );
-    }
-
-    const dbQuestion = dbQuestionResponse[0];
-    if (debug) console.log(identifier, "dbQuestion", dbQuestion);
-
-    if (dbQuestion && dbQuestion.id) {
-      const answerSections: Database["public"]["Tables"]["question_answer_sections"]["Row"][] =
-        [];
-
-      for (let i = 0; i < pageSections.length; i++) {
-        const pageSection = pageSections[i];
-        answerSections.push({
-          question_id: dbQuestion.id,
-          section_id: pageSection.id,
-          similarity: pageSection.similarity,
-        });
-      }
-
-      const { error: insertAnswerSectionsError } = await supabaseClient
-        .from("question_answer_sections")
-        .insert(answerSections);
-
-      if (insertAnswerSectionsError) {
-        throw new ApplicationError(
-          "Failed to insert answer sections into DB",
-          insertAnswerSectionsError
-        );
-      }
-    }
   }
 }
 
@@ -274,7 +279,7 @@ serve(async (req) => {
       const stream = await openai.completions.create(completionOptions);
 
       const answerGenerator = extractAnswer(
-        stream,
+        readableStreamFromIterable(stream),
         identifier,
         sanitizedQuery,
         prompt,
