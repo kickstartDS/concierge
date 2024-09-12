@@ -222,7 +222,7 @@ serve(async (req) => {
     if (debug) console.log(identifier, 'prompt', 'tokens', encodedPrompt.text.length, 'prompt', prompt)
 
     const completionOptions: CreateCompletionRequest = {
-      model: 'text-davinci-003',
+      model: 'gpt-3.5-turbo-instruct',
       prompt,
       max_tokens: 1200,
       temperature: 0,

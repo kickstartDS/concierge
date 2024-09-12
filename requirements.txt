@@ -69,3 +69,6 @@ urllib3==2.0.3
 Werkzeug==2.2.3
 wrapt==1.15.0
 WTForms==3.0.1
+
+youtube-transcript-api==0.6.1
+pytube==15.0.0
